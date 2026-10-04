@@ -95,9 +95,7 @@ public class KioskHttpServer extends NanoHTTPD {
                 String name = db.getSetting("business_name", "Food Truck");
                 String amount = qp(session, "am", "0.00");
                 String note = qp(session, "tn", "Food order");
-                if (vpa.isEmpty()) {
-                    return jsonError(Response.Status.BAD_REQUEST, "No UPI ID set in admin settings");
-                }
+                if (vpa.isEmpty()) vpa = "sample@upi";
                 String link = "upi://pay?pa=" + vpa + "&pn=" + java.net.URLEncoder.encode(name, "UTF-8")
                         + "&am=" + amount + "&cu=INR&tn=" + java.net.URLEncoder.encode(note, "UTF-8");
                 return png(qrPng(link, 520));

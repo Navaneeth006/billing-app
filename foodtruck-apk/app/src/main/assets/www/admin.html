@@ -169,7 +169,7 @@
       <label>Paper width</label>
       <select id="s_paper_chars" class="w100"><option value="32">32 chars — 58mm printer</option><option value="48">48 chars — 80mm printer</option></select>
       <div class="switchrow"><input type="checkbox" id="s_show_kitchen_slip"> <span>Also print a kitchen slip for paid orders</span></div>
-      <label>Kiosk auto-reset after payment (seconds)</label><input type="number" id="s_auto_reset_seconds" min="5" max="120">
+      <label>Kiosk auto-reset after payment (3–4 seconds)</label><input type="number" id="s_auto_reset_seconds" min="3" max="4">
       <label>UPI ID / VPA for the kiosk QR (empty = no QR)</label><input type="text" class="w100" id="s_vpa" placeholder="name@upi">
     </div>
     <div class="card">
@@ -510,7 +510,7 @@ function fillSettings(){
   $('s_thank_you_line').value = val('thank_you_line', 'Thank you! Please visit again.');
   $('s_paper_chars').value = val('paper_chars', '32');
   $('s_show_kitchen_slip').checked = s.show_kitchen_slip !== false;
-  $('s_auto_reset_seconds').value = val('auto_reset_seconds', '20');
+  $('s_auto_reset_seconds').value = Math.max(3, Math.min(4, parseInt(val('auto_reset_seconds', '4'), 10) || 4));
   $('s_vpa').value = val('vpa', '');
   $('s_admin_pin').value = val('admin_pin', '1234');
 }
@@ -528,7 +528,7 @@ function collectSettings(){
     thank_you_line: $('s_thank_you_line').value,
     paper_chars: parseInt($('s_paper_chars').value, 10) || 32,
     show_kitchen_slip: $('s_show_kitchen_slip').checked,
-    auto_reset_seconds: parseInt($('s_auto_reset_seconds').value, 10) || 20,
+    auto_reset_seconds: Math.max(3, Math.min(4, parseInt($('s_auto_reset_seconds').value, 10) || 4)),
     vpa: $('s_vpa').value.trim(),
     admin_pin: ($('s_admin_pin').value + '').replace(/\D/g, '').slice(0, 4) || '1234'
   };

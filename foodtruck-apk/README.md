@@ -3,7 +3,7 @@
 One Android app turns **any Android phone (7.0+) into the entire backend** of your food truck:
 
 - 🖥️ **HTTP kiosk server** runs on the phone as a **foreground service** — it keeps running even when you close the app or the screen turns off (persistent notification with a Stop button, survives reboot if left ON, wake-locks keep Wi-Fi awake).
-- 📱 **iPad (or any tablet/PC) on the same Wi-Fi** opens `http://PHONE-IP:4242` — that's the customer **billing kiosk**: menu, extras, cart, **UPI QR payment screen** (placeholder until PhonePe is wired in — the QR uses the UPI ID you set in admin) or cash, order confirmation with auto-reset.
+- 📱 **iPad (or any tablet/PC) on the same Wi-Fi** opens `http://PHONE-IP:4242` — that's the customer **billing kiosk**: one continuous menu, large product cards, a quantity-editable mini-cart, cart review, cash checkout, or a UPI QR screen.
 - 🧾 **Bluetooth thermal printing** — pair your ESC/POS printer in Android settings, pick it in the app. Every paid order prints a **customer receipt + kitchen slip** automatically (3 retries).
 - 🛠️ **Admin panel** — open it on the phone (built-in button) or from any browser at `/admin.html`: PIN login (default **1234**), dashboard stats, orders (mark paid / ready / complete), **full menu editor** (categories, items, prices, descriptions, emoji, image URLs, reorder ↑↓, hide, add, delete), **extras/toppings editor**, **billing settings** (business name, tagline, address, phone, GSTIN, GST on/off + %, thank-you line, paper width 32/48, kitchen slip on/off, auto-reset seconds, UPI VPA, PIN change).
 - 👨‍🍳 **Kitchen display** at `/kitchen.html` — big tickets, auto-refresh, tap to advance preparing → ready → done.
@@ -26,7 +26,7 @@ Tag a release with `v1.0` etc. and the same workflow also attaches the APK to a 
 
 1. Open **Food Truck Kiosk** on the phone → leave the **Server toggle ON**. It shows the address + QR.
 2. Connect the iPad to the **same Wi-Fi**, open `http://PHONE-IP:4242` (or scan the QR from the phone). Pin it in Safari for a fullscreen kiosk.
-3. First run: tap **Open Admin Panel** → PIN `1234` → change the PIN and edit the menu/settings.
+3. First run: tap **Open Admin Panel** → PIN `1234` → change the PIN and edit the menu/settings. The kiosk keeps every category in one scrollable menu; tapping an item adds it directly to the mini-cart.
 4. Tap **Choose Bluetooth Printer** → pick your paired ESC/POS printer (pair it first in Android Bluetooth settings). **Send Test Print** to verify.
 5. Tap the battery card once to exempt the app from battery optimization so the server survives screen-off. On aggressive phones (Xiaomi/Samsung) also set the app to *Unrestricted* in system settings.
 6. Close the phone app — the server keeps running (you'll see the notification). Turn it off from the app toggle or the notification's **Stop server** action.
@@ -35,7 +35,7 @@ Tag a release with `v1.0` etc. and the same workflow also attaches the APK to a 
 
 ## PhonePe (later)
 
-Payment is deliberately **not** integrated. The kiosk's pay screen shows a UPI QR (static VPA from settings) with "I have paid" confirmation. This does not verify that money was received; connect a payment provider and verify payment server-side before using UPI for live orders.
+Payment is deliberately **not** integrated. The kiosk shows a UPI QR for the VPA in admin settings, or a clearly labeled sample QR if no VPA is configured. The customer manually confirms payment; this does not verify that money was received. Do not use the sample QR for live payments—connect a payment provider and verify payment server-side first. Cash checkout asks for one cash confirmation, then marks the order CASH and queues the receipt and kitchen slip. The order confirmation screen returns to the menu after 3–4 seconds.
 
 ## Repo layout
 

@@ -73,7 +73,7 @@ public class KioskDatabase extends SQLiteOpenHelper {
         setSettingOn(db, "footer_msg", "Welcome! Order from the kiosk screen.");
         setSettingOn(db, "thank_you_line", "Thank you! Please visit again.");
         setSettingOn(db, "paper_chars", "32");
-        setSettingOn(db, "auto_reset_seconds", "20");
+        setSettingOn(db, "auto_reset_seconds", "4");
         setSettingOn(db, "next_order_number", "1001");
         setSettingOn(db, "printer_type", "bluetooth");
         setSettingOn(db, "show_kitchen_slip", "1");
