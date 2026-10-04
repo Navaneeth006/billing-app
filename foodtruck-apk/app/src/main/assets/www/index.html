@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Food Truck Kiosk</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0B1220; color: #F8FAFC; overflow: hidden;
+    display: flex; flex-direction: column; user-select: none;
+  }
+  .brandbar {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 10px 16px; background: #111A2E; border-bottom: 1px solid #1E293B; flex: 0 0 auto;
+  }
+  .brandbar h1 { font-size: 20px; font-weight: 800; letter-spacing: 1px; }
+  .brandbar .tag { font-size: 11px; color: #94A3B8; letter-spacing: 2px; }
+  main { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 14px 140px; }
+  .cats { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; position: sticky; top: 0; background: #0B1220; z-index: 5; }
+  .cat {
+    flex: 0 0 auto; padding: 8px 16px; border-radius: 999px; background: #16223B;
+    color: #CBD5E1; font-weight: 700; font-size: 14px; border: 1px solid #1E293B; cursor: pointer;
+  }
+  .cat.active { background: #F97316; color: #fff; border-color: #F97316; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .item {
+    background: #131F38; border: 1px solid #1E293B; border-radius: 16px; overflow: hidden;
+    display: flex; flex-direction: column; cursor: pointer; transition: transform .08s;
+  }
+  .item:active { transform: scale(.97); }
+  .item .thumb {
+    height: 92px; display: flex; align-items: center; justify-content: center;
+    font-size: 42px; background: #0E1830; overflow: hidden;
+  }
+  .item .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .item .info { padding: 8px 10px 10px; }
+  .item .name { font-size: 14px; font-weight: 700; line-height: 1.2; }
+  .item .desc { font-size: 11px; color: #94A3B8; margin-top: 2px; height: 26px; overflow: hidden; }
+  .item .row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+  .item .price { color: #FBBF24; font-weight: 800; font-size: 15px; }
+  .add {
+    width: 28px; height: 28px; border-radius: 9px; background: #F97316; color: white;
+    display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 800;
+  }
+  /* cart bar */
+  .cartbar {
+    position: fixed; left: 0; right: 0; bottom: 0; background: #111A2E;
+    border-top: 1px solid #1E293B; padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  }
+  .cartbar button {
+    width: 100%; border: 0; border-radius: 14px; background: #F97316; color: white;
+    font-size: 17px; font-weight: 800; padding: 15px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .cartbar button:disabled { background: #334155; color: #64748B; }
+  .cartbar .count { background: rgba(255,255,255,.18); border-radius: 999px; padding: 2px 10px; font-size: 13px; }
+  /* sheets */
+  .sheet {
+    position: fixed; inset: 0; background: rgba(2,6,23,.72); display: none;
+    align-items: flex-end; justify-content: center; z-index: 40;
+  }
+  .sheet.open { display: flex; }
+  .sheet .panel {
+    background: #101A31; width: 100%; max-width: 520px; max-height: 88%;
+    border-radius: 22px 22px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+    overflow-y: auto; border-top: 1px solid #223052;
+  }
+  .sheet h2 { font-size: 19px; margin-bottom: 4px; }
+  .opt { display: flex; align-items: center; gap: 10px; padding: 11px 12px; background: #16223B; border-radius: 12px; margin-top: 8px; cursor: pointer; border: 1px solid transparent; }
+  .opt.on { border-color: #F97316; background: #1B2A4A; }
+  .opt .nm { flex: 1; font-weight: 600; font-size: 15px; }
+  .opt .pr { color: #FBBF24; font-weight: 700; font-size: 13px; }
+  .qtyrow { display: flex; align-items: center; gap: 14px; margin: 14px 0 4px; }
+  .qtyrow button { width: 42px; height: 42px; border-radius: 12px; border: 0; background: #223052; color: white; font-size: 20px; font-weight: 800; }
+  .qtyrow .q { font-size: 21px; font-weight: 800; min-width: 30px; text-align: center; }
+  .primary {
+    width: 100%; border: 0; border-radius: 14px; background: #F97316; color: white;
+    font-size: 16px; font-weight: 800; padding: 14px; margin-top: 12px;
+  }
+  .ghost { width: 100%; border: 0; border-radius: 14px; background: #223052; color: #CBD5E1; font-size: 15px; font-weight: 700; padding: 13px; margin-top: 8px; }
+  .cartline { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #1B2A4A; }
+  .cartline .n { flex: 1; font-size: 14px; font-weight: 600; }
+  .cartline .x { color: #EF4444; font-weight: 800; padding: 4px 8px; font-size: 16px; }
+  .cartline .sm { color: #94A3B8; font-size: 11px; }
+  /* payment */
+  .paybox { text-align: center; padding: 6px 0; }
+  .paybox img { width: 230px; height: 230px; border-radius: 14px; background: white; padding: 8px; }
+  .paybox .amt { font-size: 32px; font-weight: 900; margin: 8px 0 2px; }
+  .paybox .sub { color: #94A3B8; font-size: 13px; margin-bottom: 8px; }
+  .status-pill { display: inline-block; padding: 7px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; background: #223052; color: #CBD5E1; }
+  .status-pill.ok { background: #14532D; color: #86EFAC; }
+  .done-wrap { text-align: center; padding: 30px 0; }
+  .done-wrap .big { font-size: 60px; }
+  .done-wrap h2 { margin: 10px 0 4px; }
+  .done-wrap .ord { color: #FBBF24; font-size: 22px; font-weight: 800; }
+  .done-wrap .cnt { color: #64748B; margin-top: 14px; font-size: 13px; }
+  .gear { position: absolute; right: 12px; top: 8px; font-size: 20px; opacity: .45; }
+</style>
+</head>
+<body>
+<div class="brandbar">
+  <span id="brandEmoji" style="font-size:22px">🚚</span>
+  <div style="text-align:center">
+    <h1 id="brandName">FOOD TRUCK</h1>
+    <div class="tag" id="brandTag">FRESH • HOT • FAST</div>
+  </div>
+  <span style="width:20px"></span>
+</div>
+<main id="menu"></main>
+
+<div class="cartbar">
+  <button id="cartBtn" disabled>
+    <span>View cart</span>
+    <span><span class="count" id="cartCount">0</span> &nbsp;₹<span id="cartTotal">0</span></span>
+  </button>
+</div>
+
+<div class="sheet" id="itemSheet">
+  <div class="panel">
+    <h2 id="itName">Item</h2>
+    <div id="itDesc" style="color:#94A3B8;font-size:13px"></div>
+    <div id="itExtras"></div>
+    <div class="qtyrow">
+      <button id="itMinus">−</button><span class="q" id="itQty">1</span><button id="itPlus">+</button>
+      <span style="flex:1"></span>
+      <span id="itTotal" style="font-size:20px;font-weight:800;color:#FBBF24">₹0</span>
+    </div>
+    <button class="primary" id="itAdd">Add to cart</button>
+    <button class="ghost" onclick="closeSheets()">Cancel</button>
+  </div>
+</div>
+
+<div class="sheet" id="cartSheet">
+  <div class="panel">
+    <h2>Your order</h2>
+    <div id="cartLines"></div>
+    <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:18px;font-weight:800">
+      <span>Total</span><span style="color:#FBBF24">₹<span id="cartSheetTotal">0</span></span>
+    </div>
+    <button class="primary" id="toPay">Place order · Pay</button>
+    <button class="ghost" onclick="closeSheets()">Keep browsing</button>
+  </div>
+</div>
+
+<div class="sheet" id="paySheet">
+  <div class="panel paybox">
+    <h2 id="payTitle">Payment</h2>
+    <div class="amt">₹<span id="payAmt">0</span></div>
+    <div class="sub" id="paySub">Order #1001</div>
+    <div id="payBody">
+      <div class="sub" style="margin-bottom:10px">Scan with any UPI app</div>
+      <img id="upiQr" alt="UPI QR code">
+    </div>
+    <div class="status-pill" style="margin-top:14px" id="payPill">Waiting for confirmation…</div>
+    <button class="primary" id="paidUpi">I have paid by UPI</button>
+    <button class="ghost" id="paidCash">Paying cash at the counter</button>
+    <button class="ghost" onclick="location.reload()">Cancel</button>
+  </div>
+</div>
+
+<div class="sheet" id="doneSheet">
+  <div class="panel done-wrap">
+    <div class="big">✅</div>
+    <h2>Order confirmed!</h2>
+    <div class="ord">Order #<span id="doneNum">1001</span></div>
+    <div class="cnt">Your slip is printing — collect your food at the counter.<br>Resetting in <span id="doneCount">20</span>s</div>
+    <button class="primary" onclick="location.reload()">Start new order</button>
+  </div>
+</div>
+
+<script>
+var state = { menu: [], extras: [], business: {}, cart: [], q: 1, current: null, lastOrder: null, timer: null };
+var $ = function(id){ return document.getElementById(id); };
+
+function money(n){ return (Math.round(n*100)/100).toFixed(2).replace(/\.00$/,''); }
+
+function boot(){
+  fetch('/api/menu').then(function(r){ return r.json(); }).then(function(d){
+    state.menu = d.categories || [];
+    state.extras = d.extras || [];
+    state.business = d.business || {};
+    renderBrand(); renderMenu();
+  }).catch(function(){
+    $('menu').innerHTML = '<div style="text-align:center;color:#94A3B8;padding:60px 20px">Cannot reach the food truck server.<br>Check that the phone server toggle is ON and both devices are on the same Wi-Fi.</div>';
+  });
+}
+
+function renderBrand(){
+  var b = state.business;
+  $('brandName').textContent = b.business_name || 'FOOD TRUCK';
+  $('brandTag').textContent = b.tagline || '';
+  $('brandEmoji').textContent = b.brand_emoji || '🚚';
+  document.title = b.business_name || 'Food Truck Kiosk';
+}
+
+function renderMenu(){
+  var host = $('menu'); host.innerHTML = '';
+  if (!state.menu.length) { host.innerHTML = '<div style="text-align:center;color:#64748B;padding:60px 20px">Menu coming soon.</div>'; return; }
+  var cats = document.createElement('div'); cats.className = 'cats';
+  var grid = document.createElement('div'); grid.className = 'grid'; grid.id = 'grid';
+  var names = state.menu.map(function(c){ return c.name; });
+  names.forEach(function(n, i){
+    var chip = document.createElement('div');
+    chip.className = 'cat' + (i === 0 ? ' active' : '');
+    chip.textContent = (state.menu[i].emoji ? state.menu[i].emoji + ' ' : '') + n;
+    chip.onclick = function(){
+      Array.prototype.forEach.call(cats.children, function(c){ c.classList.remove('active'); });
+      chip.classList.add('active'); fillGrid(i);
+    };
+    cats.appendChild(chip);
+  });
+  host.appendChild(cats); host.appendChild(grid);
+  fillGrid(0);
+}
+
+function fillGrid(ci){
+  var grid = $('grid'); grid.innerHTML = '';
+  (state.menu[ci] && state.menu[ci].items || []).forEach(function(item){
+    var card = document.createElement('div'); card.className = 'item';
+    var thumb = item.image
+      ? '<div class="thumb"><img src="' + item.image + '" onerror="this.style.display=\'none\'"></div>'
+      : '<div class="thumb">' + (item.emoji || '🍽️') + '</div>';
+    card.innerHTML = thumb +
+      '<div class="info"><div class="name">' + esc(item.name) + '</div>' +
+      '<div class="desc">' + esc(item.description || '') + '</div>' +
+      '<div class="row"><span class="price">₹' + money(item.price) + '</span><span class="add">+</span></div></div>';
+    card.onclick = function(){ openItem(item); };
+    grid.appendChild(card);
+  });
+}
+
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+function openItem(item){
+  state.current = item; state.q = 1;
+  $('itName').textContent = item.name;
+  $('itDesc').textContent = item.description || '';
+  var ex = $('itExtras'); ex.innerHTML = '';
+  if (state.extras.length) {
+    var lbl = document.createElement('div');
+    lbl.style.cssText = 'margin-top:12px;font-size:12px;color:#94A3B8;font-weight:700;letter-spacing:1px';
+    lbl.textContent = 'ADD EXTRAS';
+    ex.appendChild(lbl);
+    state.extras.forEach(function(x){
+      var o = document.createElement('div'); o.className = 'opt';
+      o.innerHTML = '<span style="font-size:20px">' + (x.emoji || '➕') + '</span>' +
+        '<span class="nm">' + esc(x.name) + '</span><span class="pr">+₹' + money(x.price) + '</span>';
+      o.onclick = function(){ o.classList.toggle('on'); updateItemTotal(); };
+      o.dataset.xid = x.id; o.dataset.price = x.price;
+      ex.appendChild(o);
+    });
+  }
+  $('itQty').textContent = '1'; updateItemTotal();
+  $('itemSheet').classList.add('open');
+}
+
+function pickedExtras(){
+  return Array.prototype.map.call(document.querySelectorAll('#itExtras .opt.on'), function(o){
+    return { id: parseInt(o.dataset.xid, 10), price: parseFloat(o.dataset.price), name: o.querySelector('.nm').textContent };
+  });
+}
+
+function updateItemTotal(){
+  if (!state.current) return;
+  var t = state.current.price * state.q;
+  pickedExtras().forEach(function(x){ t += x.price * state.q; });
+  $('itQty').textContent = state.q;
+  $('itTotal').textContent = '₹' + money(t);
+}
+
+$('itPlus').onclick = function(){ if (state.q < 20) { state.q++; updateItemTotal(); } };
+$('itMinus').onclick = function(){ if (state.q > 1) { state.q--; updateItemTotal(); } };
+$('itAdd').onclick = function(){
+  state.cart.push({ id: state.current.id, name: state.current.name, price: state.current.price,
+    qty: state.q, extras: pickedExtras() });
+  closeSheets(); renderCartBar();
+};
+
+function cartTotal(){
+  return state.cart.reduce(function(s, l){
+    return s + l.price * l.qty + (l.extras || []).reduce(function(a, x){ return a + x.price * l.qty; }, 0);
+  }, 0);
+}
+function cartCount(){ return state.cart.reduce(function(s, l){ return s + l.qty; }, 0); }
+
+function renderCartBar(){
+  $('cartCount').textContent = cartCount();
+  $('cartTotal').textContent = money(cartTotal());
+  $('cartBtn').disabled = !state.cart.length;
+}
+
+$('cartBtn').onclick = function(){
+  var host = $('cartLines'); host.innerHTML = '';
+  state.cart.forEach(function(l, i){
+    var row = document.createElement('div'); row.className = 'cartline';
+    var ex = (l.extras || []).map(function(x){ return '+' + x.name; }).join(', ');
+    row.innerHTML = '<div class="n">' + esc(l.name) + ' × ' + l.qty +
+      (ex ? '<div class="sm">' + esc(ex) + '</div>' : '') + '</div>' +
+      '<span style="font-weight:700">₹' + money(l.price * l.qty + (l.extras || []).reduce(function(a, x){ return a + x.price * l.qty; }, 0)) + '</span>' +
+      '<span class="x">✕</span>';
+    row.querySelector('.x').onclick = function(){ state.cart.splice(i, 1); renderCartBar(); $('cartBtn').onclick(); };
+    host.appendChild(row);
+  });
+  $('cartSheetTotal').textContent = money(cartTotal());
+  $('cartSheet').classList.add('open');
+};
+
+$('toPay').onclick = function(){
+  var cart = state.cart.map(function(l){
+    return { id: l.id, qty: l.qty, extras: (l.extras || []).map(function(x){ return x.id; }) };
+  });
+  fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cart: cart }) })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.ok) { alert(d.error || 'Could not place order'); return; }
+      state.lastOrder = d.order;
+      openPay(d.order);
+    })
+    .catch(function(){ alert('Server unreachable'); });
+};
+
+function openPay(order){
+  closeSheets();
+  $('payAmt').textContent = money(order.total);
+  $('paySub').textContent = 'Order #' + order.orderNumber;
+  $('paidUpi').style.display = 'none';
+  $('paidCash').style.display = 'none';
+  $('payPill').textContent = 'Loading UPI QR…';
+  $('payPill').className = 'status-pill';
+  $('paySheet').classList.add('open');
+  var img = $('upiQr');
+  img.onload = function(){
+    $('payPill').textContent = 'Scan & pay, then tap below';
+    $('paidUpi').style.display = 'block';
+    $('paidCash').style.display = 'block';
+  };
+  img.onerror = function(){
+    $('payBody').innerHTML = '<div class="sub">UPI QR unavailable — set your UPI ID in Admin → Settings,<br>or choose cash below.</div>';
+    $('payPill').textContent = 'QR unavailable — pay at the counter';
+    $('paidUpi').style.display = 'none';
+    $('paidCash').style.display = 'block';
+  };
+  img.src = '/api/qr/upi?am=' + encodeURIComponent(order.total.toFixed(2)) + '&tn=' + encodeURIComponent('Order ' + order.orderNumber);
+  $('paidUpi').onclick = function(){ confirmPaid('upi'); };
+  $('paidCash').onclick = function(){ confirmPaid('cash'); };
+}
+
+function confirmPaid(method){
+  $('paidUpi').disabled = true; $('paidCash').disabled = true;
+  if ($('payPill')) $('payPill').textContent = 'Confirming…';
+  fetch('/api/orders/' + state.lastOrder.id + '/confirm-paid', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ method: method })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (!d.ok) { alert(d.error || 'Could not confirm'); location.reload(); return; }
+    showDone(d.order);
+  }).catch(function(){ alert('Server unreachable'); location.reload(); });
+}
+
+function showDone(order){
+  closeSheets();
+  $('doneNum').textContent = order.orderNumber;
+  $('doneSheet').classList.add('open');
+  var left = parseInt(state.business.auto_reset_seconds, 10) || 20;
+  $('doneCount').textContent = left;
+  state.timer = setInterval(function(){
+    left--;
+    if (left <= 0) { clearInterval(state.timer); location.reload(); return; }
+    $('doneCount').textContent = left;
+  }, 1000);
+}
+
+function closeSheets(){
+  Array.prototype.forEach.call(document.querySelectorAll('.sheet'), function(s){ s.classList.remove('open'); });
+}
+
+boot();
+</script>
+</body>
+</html>

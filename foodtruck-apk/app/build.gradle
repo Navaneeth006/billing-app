@@ -1,0 +1,38 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.foodtruck.kiosk'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.foodtruck.kiosk"
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // NanoHTTPD: tiny pure-Java HTTP server that hosts the kiosk API on the
+    // phone. ZXing renders the QR codes. Everything else is Android framework
+    // + AndroidX basics.
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.core:core:1.17.0'
+}

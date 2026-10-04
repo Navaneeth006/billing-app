@@ -1,0 +1,5 @@
+// Top-level build file. AGP version must be compatible with the bundled
+// Gradle wrapper (8.14.3) and the JDK used by the build (17+).
+plugins {
+    id 'com.android.application' version '8.13.0' apply false
+}

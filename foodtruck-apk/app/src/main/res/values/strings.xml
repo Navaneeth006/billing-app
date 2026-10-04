@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Food Truck Kiosk</string>
+    <string name="server_on">Server is ON</string>
+    <string name="server_off">Server is OFF</string>
+    <string name="open_admin">Open Admin Panel</string>
+    <string name="choose_printer">Choose Bluetooth Printer</string>
+    <string name="test_print">Send Test Print</string>
+    <string name="battery_title">Allow background running</string>
+    <string name="battery_body">Tap to exclude this app from battery optimization so the server stays alive when the screen is off or the app is closed.</string>
+    <string name="help_title">How to use</string>
+    <string name="help_body">1. Turn the server ON (it keeps running even if you close the app).\n2. Connect the iPad to the same Wi‑Fi as this phone.\n3. Open the http:// address (or scan the QR) on the iPad — that is your billing kiosk.\n4. Tap Open Admin Panel here to manage menu, prices, images, order of items, billing settings and orders.\n5. Pair your thermal printer in Android Bluetooth settings, pick it under Choose Bluetooth Printer. Paid orders print automatically.\n\nDefault admin PIN: 1234</string>
+    <string name="printer_none">No printer selected yet</string>
+</resources>

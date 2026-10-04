@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kitchen · Food Truck Kiosk</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#0B1220; color:#E2E8F0; min-height:100vh; padding:14px; }
+  h1 { font-size:18px; margin-bottom:4px; }
+  .sub { color:#64748B; font-size:12px; margin-bottom:14px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+  .ticket { border-radius:16px; padding:14px; border:1px solid #1E293B; background:#131F38; }
+  .ticket.preparing { border-left:6px solid #3B82F6; }
+  .ticket.ready { border-left:6px solid #22C55E; }
+  .ticket .num { font-size:22px; font-weight:900; color:#FBBF24; }
+  .ticket .when { color:#64748B; font-size:12px; margin-top:2px; }
+  .ticket .lines { margin:10px 0; font-size:16px; font-weight:700; line-height:1.5; }
+  .ticket .lines .ex { font-weight:400; font-size:12px; color:#94A3B8; display:block; }
+  .ticket button { width:100%; border:0; border-radius:10px; padding:11px; font-weight:800; font-size:14px; cursor:pointer; background:#223052; color:#E2E8F0; }
+  .ticket button.next { background:#F97316; color:#fff; }
+  .empty { color:#475569; text-align:center; padding:70px 0; font-size:15px; }
+</style>
+</head>
+<body>
+<h1>👨‍🍳 Kitchen display</h1>
+<div class="sub">Paid orders only · auto-refreshes every 5 s</div>
+<div class="grid" id="grid"></div>
+<div class="empty" id="empty" style="display:none">No open orders right now 🙂</div>
+
+<script>
+var $ = function(id){ return document.getElementById(id); };
+var TOKEN = localStorage.getItem('ftk_token') || '';
+
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+function tick(){
+  fetch('/api/kitchen/orders', { headers: TOKEN ? { 'X-Admin-Token': TOKEN } : {} })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if (!d) return;
+      render(d.orders || []);
+    })
+    .catch(function(){});
+}
+
+function render(orders){
+  var grid = $('grid'); grid.innerHTML = '';
+  $('empty').style.display = orders.length ? 'none' : 'block';
+  orders.forEach(function(o){
+    var el = document.createElement('div');
+    el.className = 'ticket ' + (o.status === 'ready' ? 'ready' : 'preparing');
+    var lines = (o.items || []).map(function(it){
+      var ex = (it.extras || []).map(function(x){ return '+' + esc(x.name); }).join(', ');
+      return '<div>' + it.qty + ' × ' + esc(it.name) + (ex ? '<span class="ex">' + ex + '</span>' : '') + '</div>';
+    }).join('');
+    var next = o.status === 'preparing' ? 'ready' : 'completed';
+    var label = o.status === 'preparing' ? 'Mark READY' : 'Pickup done';
+    el.innerHTML = '<div class="num">#' + o.orderNumber + '</div>' +
+      '<div class="when">' + esc(o.createdAt || '') + '</div>' +
+      '<div class="lines">' + lines + '</div>' +
+      '<button class="next" onclick="advance(' + o.id + ',\'' + next + '\')">' + label + '</button>';
+    grid.appendChild(el);
+  });
+}
+
+function advance(id, status){
+  fetch('/api/kitchen/orders/' + id + '/status', {
+    method: 'POST',
+    headers: Object.assign({ 'Content-Type': 'application/json' }, TOKEN ? { 'X-Admin-Token': TOKEN } : {}),
+    body: JSON.stringify({ status: status })
+  }).then(function(){ tick(); }).catch(function(){});
+}
+
+tick();
+setInterval(tick, 5000);
+</script>
+</body>
+</html>

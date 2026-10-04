@@ -1,0 +1,51 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+    paths:
+      - 'foodtruck-apk/**'
+      - '.github/workflows/android-apk.yml'
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build debug APK
+        working-directory: foodtruck-apk
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: food-truck-kiosk-debug-apk
+          path: foodtruck-apk/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Attach APK to release
+        # Runs only when the push carries a v* tag. On plain pushes this step
+        # is skipped and the APK is available under the run's Artifacts.
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: foodtruck-apk/app/build/outputs/apk/debug/app-debug.apk
