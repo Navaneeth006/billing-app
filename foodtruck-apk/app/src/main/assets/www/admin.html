@@ -62,8 +62,16 @@
   .itembox textarea.ds { width:100%; font-size:12px; margin-top:6px; resize:vertical; }
   .itembox .r2 { display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap; }
   .itembox input.img { flex:1; min-width:150px; font-size:12px; }
+  .itembox input.upload-image { max-width:100%; color:#CBD5E1; font-size:12px; }
   .thumb { width:38px; height:38px; border-radius:9px; background:#16223B; display:flex; align-items:center; justify-content:center; font-size:20px; overflow:hidden; flex:0 0 auto; cursor:pointer; }
   .thumb img { width:100%; height:100%; object-fit:cover; }
+  .color-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:10px; }
+  .color-choice { background:#0E1830; border:1px solid #223052; border-radius:12px; padding:10px; }
+  .color-choice label { margin:0 0 6px; }
+  .color-choice input { width:100%; height:42px; border:0; background:transparent; cursor:pointer; }
+  .theme-preview { margin-top:12px; border-radius:12px; padding:14px; background:var(--preview-panel); color:var(--preview-text); border:1px solid #334155; }
+  .theme-preview button { border:0; border-radius:8px; background:var(--preview-accent); color:white; padding:8px 12px; font-weight:800; }
+  .theme-preview strong { color:var(--preview-highlight); }
   .avail { display:flex; align-items:center; gap:5px; font-size:12px; color:#94A3B8; font-weight:700; cursor:pointer; user-select:none; }
   .extrarow { background:#0E1830; border:1px solid #1B2A4A; border-radius:12px; padding:10px 12px; margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .extrarow input.emoji { width:52px; text-align:center; font-size:17px; }
@@ -162,10 +170,24 @@
       <label>GSTIN</label><input type="text" class="w100" id="s_gstin">
     </div>
     <div class="card">
+      <h3>Kiosk theme colors</h3>
+      <p class="muted">Choose colors for the customer menu. Save to apply them to the kiosk.</p>
+      <div class="color-grid">
+        <div class="color-choice"><label for="s_theme_background">Page background</label><input type="color" id="s_theme_background"></div>
+        <div class="color-choice"><label for="s_theme_panel">Cards and header</label><input type="color" id="s_theme_panel"></div>
+        <div class="color-choice"><label for="s_theme_accent">Buttons and accents</label><input type="color" id="s_theme_accent"></div>
+        <div class="color-choice"><label for="s_theme_highlight">Prices and highlights</label><input type="color" id="s_theme_highlight"></div>
+        <div class="color-choice"><label for="s_theme_text">Main text</label><input type="color" id="s_theme_text"></div>
+      </div>
+      <div id="themePreview" class="theme-preview"><strong>Menu preview</strong><p style="margin:8px 0">Example product · ₹79</p><button type="button">Add to order</button></div>
+    </div>
+    <div class="card">
       <h3>Billing &amp; receipts</h3>
       <div class="switchrow"><input type="checkbox" id="s_show_gst_on_receipt"> <span>Show GST line on receipts</span></div>
       <label>GST percent</label><input type="number" id="s_gst_percent" min="0" max="40">
       <label>Thank-you line (receipt footer)</label><input type="text" class="w100" id="s_thank_you_line">
+      <label>Cash receipt center heading</label><input type="text" class="w100" id="s_cash_receipt_title" maxlength="24" placeholder="CASH">
+      <label>UPI receipt center heading</label><input type="text" class="w100" id="s_upi_receipt_title" maxlength="24" placeholder="PAID">
       <label>Paper width</label>
       <select id="s_paper_chars" class="w100"><option value="32">32 chars — 58mm printer</option><option value="48">48 chars — 80mm printer</option></select>
       <div class="switchrow"><input type="checkbox" id="s_show_kitchen_slip"> <span>Also print a kitchen slip for paid orders</span></div>
@@ -364,6 +386,15 @@ function renderMenu(){
         '<div class="thumb" onclick="pickImage(' + ci + ',' + ii + ')">' + thumbContent + '</div>' +
         '<input class="img" placeholder="https:// image URL (optional)" value="' + esc(it.image || '') + '" data-k="image" data-ci="' + ci + '" data-ii="' + ii + '">' +
         '<span class="muted">#' + (it.sortOrder != null ? it.sortOrder : ii) + '</span>';
+      var upload = document.createElement('input');
+      upload.type = 'file';
+      upload.accept = 'image/jpeg,image/png,image/webp';
+      upload.className = 'upload-image';
+      upload.setAttribute('aria-label', 'Upload and save image for ' + (it.name || 'menu item'));
+      upload.dataset.ci = ci;
+      upload.dataset.ii = ii;
+      upload.onchange = function(){ uploadItemImage(upload); };
+      r2.appendChild(upload);
       var r1 = document.createElement('div'); r1.className = 'r1';
       r1.innerHTML =
         '<input class="emoji" value="' + esc(it.emoji || '') + '" data-k="emoji" data-ci="' + ci + '" data-ii="' + ii + '">' +
@@ -454,6 +485,40 @@ function pickImage(ci, ii){
   renderMenu();
 }
 
+function uploadItemImage(input){
+  var file = input.files && input.files[0];
+  if (!file) return;
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+    alert('Choose a JPG, PNG, or WebP image.');
+    input.value = '';
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Images must be 5 MB or smaller.');
+    input.value = '';
+    return;
+  }
+  var ci = parseInt(input.dataset.ci, 10);
+  var ii = parseInt(input.dataset.ii, 10);
+  input.disabled = true;
+  var form = new FormData();
+  form.append('image', file, file.name);
+  fetch('/api/admin/images', { method:'POST', headers:authHeaders(), body:form })
+    .then(function(response){
+      return response.json().then(function(data){
+        if (!response.ok || !data.ok || !data.url) throw new Error(data.error || 'Image upload failed.');
+        S.categories[ci].items[ii].image = data.url;
+        return saveAll();
+      });
+    })
+    .then(function(saved){
+      if (!saved) throw new Error('Image uploaded, but menu changes were not saved. Use Save everything to retry.');
+      alert('Image uploaded and saved on this phone.');
+    })
+    .catch(function(error){ alert(error.message || 'Could not upload image.'); })
+    .then(function(){ input.disabled = false; input.value = ''; });
+}
+
 /* ---------------- extras editor ---------------- */
 function renderExtras(){
   var host = $('extraList'); host.innerHTML = '';
@@ -505,15 +570,40 @@ function fillSettings(){
   $('s_address').value = val('address', '');
   $('s_phone').value = val('phone', '');
   $('s_gstin').value = val('gstin', '');
+  $('s_theme_background').value = safeColor(val('theme_background', '#0B1220'), '#0B1220');
+  $('s_theme_panel').value = safeColor(val('theme_panel', '#131F38'), '#131F38');
+  $('s_theme_accent').value = safeColor(val('theme_accent', '#F97316'), '#F97316');
+  $('s_theme_highlight').value = safeColor(val('theme_highlight', '#FBBF24'), '#FBBF24');
+  $('s_theme_text').value = safeColor(val('theme_text', '#F8FAFC'), '#F8FAFC');
   $('s_show_gst_on_receipt').checked = s.show_gst_on_receipt === true || s.show_gst_on_receipt === '1';
   $('s_gst_percent').value = val('gst_percent', '0');
   $('s_thank_you_line').value = val('thank_you_line', 'Thank you! Please visit again.');
+  $('s_cash_receipt_title').value = val('cash_receipt_title', 'CASH');
+  $('s_upi_receipt_title').value = val('upi_receipt_title', 'PAID');
   $('s_paper_chars').value = val('paper_chars', '32');
   $('s_show_kitchen_slip').checked = s.show_kitchen_slip !== false;
   $('s_auto_reset_seconds').value = Math.max(3, Math.min(4, parseInt(val('auto_reset_seconds', '4'), 10) || 4));
   $('s_vpa').value = val('vpa', '');
   $('s_admin_pin').value = val('admin_pin', '1234');
+  updateThemePreview();
 }
+
+function safeColor(value, fallback){
+  return /^#[0-9a-f]{6}$/i.test(String(value || '')) ? value : fallback;
+}
+
+function updateThemePreview(){
+  var preview = $('themePreview');
+  preview.style.setProperty('--preview-panel', safeColor($('s_theme_panel').value, '#131F38'));
+  preview.style.setProperty('--preview-text', safeColor($('s_theme_text').value, '#F8FAFC'));
+  preview.style.setProperty('--preview-accent', safeColor($('s_theme_accent').value, '#F97316'));
+  preview.style.setProperty('--preview-highlight', safeColor($('s_theme_highlight').value, '#FBBF24'));
+  preview.style.outline = '8px solid ' + safeColor($('s_theme_background').value, '#0B1220');
+}
+
+Array.prototype.forEach.call(document.querySelectorAll('.color-choice input[type=color]'), function(input){
+  input.oninput = updateThemePreview;
+});
 
 function collectSettings(){
   return {
@@ -523,9 +613,16 @@ function collectSettings(){
     address: $('s_address').value,
     phone: $('s_phone').value,
     gstin: $('s_gstin').value,
+    theme_background: safeColor($('s_theme_background').value, '#0B1220'),
+    theme_panel: safeColor($('s_theme_panel').value, '#131F38'),
+    theme_accent: safeColor($('s_theme_accent').value, '#F97316'),
+    theme_highlight: safeColor($('s_theme_highlight').value, '#FBBF24'),
+    theme_text: safeColor($('s_theme_text').value, '#F8FAFC'),
     show_gst_on_receipt: $('s_show_gst_on_receipt').checked,
     gst_percent: parseInt($('s_gst_percent').value, 10) || 0,
     thank_you_line: $('s_thank_you_line').value,
+    cash_receipt_title: $('s_cash_receipt_title').value.trim().slice(0, 24) || 'CASH',
+    upi_receipt_title: $('s_upi_receipt_title').value.trim().slice(0, 24) || 'PAID',
     paper_chars: parseInt($('s_paper_chars').value, 10) || 32,
     show_kitchen_slip: $('s_show_kitchen_slip').checked,
     auto_reset_seconds: Math.max(3, Math.min(4, parseInt($('s_auto_reset_seconds').value, 10) || 4)),
@@ -541,9 +638,9 @@ function saveAll(){
     categories: S.categories,
     extras: S.extras
   };
-  fetch('/api/admin/sync', { method:'POST', headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
+  return fetch('/api/admin/sync', { method:'POST', headers: Object.assign({'Content-Type':'application/json'}, authHeaders()),
     body: JSON.stringify(payload) })
-    .then(function(r){ return r.json(); })
+    .then(function(r){ return r.json().then(function(d){ if (!r.ok) throw new Error(d.error || 'Save failed.'); return d; }); })
     .then(function(d){
       var okMsg = d && d.ok;
       ['savedMsg', 'savedMsg2', 'savedMsg3'].forEach(function(id){
@@ -555,8 +652,19 @@ function saveAll(){
         setTimeout(function(){ el.style.display = 'none'; }, 2600);
       });
       loadAll();
+      if (!okMsg) throw new Error('Could not save settings or menu.');
+      return true;
     })
-    .catch(function(){ alert('Could not reach the server'); });
+    .catch(function(error){
+      ['savedMsg', 'savedMsg2', 'savedMsg3'].forEach(function(id){
+        var el = $(id);
+        el.style.display = 'block';
+        el.textContent = error.message || 'Could not reach the server';
+        el.style.background = '#7F1D1D';
+        el.style.color = '#FCA5A5';
+      });
+      return false;
+    });
 }
 
 /* ---------------- printer ---------------- */

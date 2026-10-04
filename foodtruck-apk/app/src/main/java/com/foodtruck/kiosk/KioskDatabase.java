@@ -65,6 +65,13 @@ public class KioskDatabase extends SQLiteOpenHelper {
     private void seed(SQLiteDatabase db) {
         setSettingOn(db, "business_name", "FOOD TRUCK");
         setSettingOn(db, "tagline", "FRESH • HOT • FAST");
+        setSettingOn(db, "theme_background", "#0B1220");
+        setSettingOn(db, "theme_panel", "#131F38");
+        setSettingOn(db, "theme_accent", "#F97316");
+        setSettingOn(db, "theme_highlight", "#FBBF24");
+        setSettingOn(db, "theme_text", "#F8FAFC");
+        setSettingOn(db, "cash_receipt_title", "CASH");
+        setSettingOn(db, "upi_receipt_title", "PAID");
         setSettingOn(db, "address", "");
         setSettingOn(db, "phone", "");
         setSettingOn(db, "gstin", "");

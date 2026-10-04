@@ -117,6 +117,16 @@ public final class ReceiptPrinter {
             bold(b, true);
             text(b, db.getSetting("business_name", "FOOD TRUCK") + "\n");
             bold(b, false);
+            boolean cash = "cash".equalsIgnoreCase(order.optString("paymentMethod"));
+            String paymentTitle = db.getSetting(
+                    cash ? "cash_receipt_title" : "upi_receipt_title",
+                    cash ? "CASH" : "PAID");
+            align(b, 1);
+            bold(b, true);
+            doubleHeight(b, true);
+            text(b, paymentTitle.toUpperCase(java.util.Locale.ROOT) + "\n");
+            doubleHeight(b, false);
+            bold(b, false);
             String tagline = db.getSetting("tagline", "");
             if (!tagline.isEmpty()) text(b, tagline + "\n");
             String address = db.getSetting("address", "");
@@ -157,7 +167,7 @@ public final class ReceiptPrinter {
             doubleHeight(b, false);
             bold(b, false);
             text(b, line(chars) + "\n");
-            text(b, "PAID via " + ("upi".equalsIgnoreCase(order.optString("paymentMethod")) ? "UPI" : "CASH") + "\n");
+            text(b, cash ? "Payment: CASH\n" : "Payment: UPI\n");
 
             String vpa = db.getSetting("vpa", "");
             if (!vpa.isEmpty() && "upi".equalsIgnoreCase(order.optString("paymentMethod"))) {

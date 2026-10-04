@@ -3,6 +3,7 @@ package com.foodtruck.kiosk;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 
 import com.google.zxing.BarcodeFormat;
@@ -14,6 +15,9 @@ import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -30,6 +34,8 @@ import fi.iki.elonen.NanoHTTPD;
  */
 public class KioskHttpServer extends NanoHTTPD {
     public static final int SERVER_PORT = 4242;
+    private static final long MAX_IMAGE_UPLOAD_BYTES = 5L * 1024L * 1024L;
+    private static final int MAX_IMAGE_DIMENSION = 1600;
     private static final String PREFS = "kiosk_prefs";
     private static final String KEY_ADMIN_TOKEN = "admin_token";
 
@@ -132,6 +138,10 @@ public class KioskHttpServer extends NanoHTTPD {
                 return png(kioskUrlQr());
             }
 
+            if (uri.startsWith("/uploads/") && Method.GET.equals(method)) {
+                return serveUploadedImage(uri);
+            }
+
             if (Method.GET.equals(method)) {
                 return serveAsset(session.getUri());
             }
@@ -208,6 +218,9 @@ public class KioskHttpServer extends NanoHTTPD {
             }
             return cors(json(Response.Status.OK, "{\"ok\":true}"));
         }
+        if (uri.equals("/api/admin/images") && Method.POST.equals(method)) {
+            return uploadImage(session);
+        }
         if (uri.equals("/api/admin/export") && Method.GET.equals(method)) {
             JSONObject out = new JSONObject();
             out.put("settings", db.settingsJson());
@@ -245,6 +258,94 @@ public class KioskHttpServer extends NanoHTTPD {
             }
         }
         return jsonError(Response.Status.NOT_FOUND, "Not found");
+    }
+
+    private Response uploadImage(IHTTPSession session) {
+        String length = header(session, "content-length");
+        if (length != null) {
+            try {
+                if (Long.parseLong(length) > MAX_IMAGE_UPLOAD_BYTES + 64 * 1024) {
+                    return jsonError(Response.Status.BAD_REQUEST, "Image is too large. Maximum size is 5 MB.");
+                }
+            } catch (NumberFormatException e) {
+                return jsonError(Response.Status.BAD_REQUEST, "Invalid upload size.");
+            }
+        }
+
+        Map<String, String> files = new HashMap<>();
+        try {
+            session.parseBody(files);
+            String tempPath = files.get("image");
+            if (tempPath == null) {
+                return jsonError(Response.Status.BAD_REQUEST, "Choose an image to upload.");
+            }
+            File source = new File(tempPath);
+            if (!source.isFile() || source.length() <= 0 || source.length() > MAX_IMAGE_UPLOAD_BYTES) {
+                return jsonError(Response.Status.BAD_REQUEST, "Image is empty or larger than 5 MB.");
+            }
+
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(source.getAbsolutePath(), bounds);
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                return jsonError(Response.Status.BAD_REQUEST, "The uploaded file is not a supported image.");
+            }
+            int sampleSize = 1;
+            while (bounds.outWidth / sampleSize > MAX_IMAGE_DIMENSION
+                    || bounds.outHeight / sampleSize > MAX_IMAGE_DIMENSION) {
+                sampleSize *= 2;
+            }
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inSampleSize = sampleSize;
+            Bitmap bitmap = BitmapFactory.decodeFile(source.getAbsolutePath(), options);
+            if (bitmap == null) {
+                return jsonError(Response.Status.BAD_REQUEST, "The uploaded file is not a supported image.");
+            }
+
+            String filename = UUID.randomUUID().toString() + ".jpg";
+            File directory = new File(context.getFilesDir(), "kiosk-images");
+            if (!directory.isDirectory() && !directory.mkdirs()) {
+                bitmap.recycle();
+                return jsonError(Response.Status.INTERNAL_ERROR, "Could not create image storage.");
+            }
+            File destination = new File(directory, filename);
+            boolean saved;
+            try (FileOutputStream output = new FileOutputStream(destination)) {
+                saved = bitmap.compress(Bitmap.CompressFormat.JPEG, 88, output);
+                output.flush();
+            } finally {
+                bitmap.recycle();
+            }
+            if (!saved) {
+                destination.delete();
+                return jsonError(Response.Status.INTERNAL_ERROR, "Could not save the uploaded image.");
+            }
+            JSONObject result = new JSONObject();
+            result.put("ok", true);
+            result.put("url", "/uploads/" + filename);
+            return cors(json(Response.Status.OK, result.toString()));
+        } catch (IOException | ResponseException e) {
+            return jsonError(Response.Status.BAD_REQUEST, "Could not read uploaded image: " + e.getMessage());
+        } catch (JSONException e) {
+            return jsonError(Response.Status.INTERNAL_ERROR, "Could not return uploaded image URL.");
+        }
+    }
+
+    private Response serveUploadedImage(String uri) {
+        String filename = uri.substring("/uploads/".length());
+        if (!filename.matches("^[a-f0-9-]{36}\\.jpg$")) {
+            return text(Response.Status.BAD_REQUEST, "Invalid image path");
+        }
+        File image = new File(new File(context.getFilesDir(), "kiosk-images"), filename);
+        if (!image.isFile()) return text(Response.Status.NOT_FOUND, "Image not found");
+        try {
+            Response response = newFixedLengthResponse(Response.Status.OK, "image/jpeg",
+                    new FileInputStream(image), image.length());
+            response.addHeader("Cache-Control", "public, max-age=31536000, immutable");
+            return cors(response);
+        } catch (IOException e) {
+            return text(Response.Status.INTERNAL_ERROR, "Could not read image");
+        }
     }
 
     // ------------------------------------------------------------------ order creation
@@ -433,7 +534,7 @@ public class KioskHttpServer extends NanoHTTPD {
 
     private Response cors(Response response) {
         response.addHeader("Access-Control-Allow-Origin", "*");
-        response.addHeader("Access-Control-Allow-Headers", "Content-Type, X-Admin-PIN");
+        response.addHeader("Access-Control-Allow-Headers", "Content-Type, X-Admin-PIN, X-Admin-Token");
         response.addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         return response;
     }
